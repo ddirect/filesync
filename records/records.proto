@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option go_package = "github.com/ddirect/filesync/records";
+
+message Dir {
+	string path = 1;
+	sfixed64 timeNs = 2;
+}
+
+message File {
+	string name = 1;
+	int64 dirIndex = 2;
+	bytes hash = 3;
+	sfixed64 timeNs = 4;
+	int64 size = 5;
+}
+
+message DbHeader {
+    int64 dirCount = 1;
+    int64 fileCount = 2;
+}
+
+message Command {
+    enum Op {
+        NONE=0;
+        GETDB=1;
+        GETFILE=2;
+    }
+    Op op = 1;
+}
