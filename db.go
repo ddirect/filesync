@@ -6,13 +6,10 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/ddirect/filesync/records"
-	"google.golang.org/protobuf/proto"
-
-	//"google.golang.org/protobuf/proto"
-
 	"github.com/ddirect/check"
 	"github.com/ddirect/filemeta"
+	"github.com/ddirect/filesync/records"
+	"github.com/ddirect/protostream"
 )
 
 type HashKey [filemeta.HashSize]byte
@@ -22,55 +19,11 @@ func toHashKey(x []byte) (k HashKey) {
 	return
 }
 
-type Dir struct {
-	Path   string
-	TimeNs int64
-}
-
-func DirRecordBuilder() func(*Dir) proto.Message {
-	r := new(records.Dir)
-	return func(d *Dir) proto.Message {
-		r.Path = d.Path
-		r.TimeNs = d.TimeNs
-		return r
-	}
-}
-
-type File struct {
-	Path     string
-	Name     string
-	DirIndex int
-	Hash     []byte
-	TimeNs   int64
-	Size     int64
-}
-
-func FileRecordBuilder() func(*File) proto.Message {
-	r := new(records.File)
-	return func(d *File) proto.Message {
-		r.Name = d.Name
-		r.DirIndex = int64(d.DirIndex)
-		r.Hash = d.Hash
-		r.TimeNs = d.TimeNs
-		r.Size = d.Size
-		return r
-	}
-}
-
 type Db struct {
 	Dirs   []Dir
 	Files  []*File
 	ByHash map[HashKey]*File
 	ByPath map[string]*File
-}
-
-func DbHeaderRecordBuilder() func(*Db) proto.Message {
-	r := new(records.DbHeader)
-	return func(db *Db) proto.Message {
-		r.DirCount = int64(len(db.Dirs))
-		r.FileCount = int64(len(db.Files))
-		return r
-	}
 }
 
 func ReadDb(basePath string) *Db {
@@ -123,5 +76,45 @@ func ReadDb(basePath string) *Db {
 	close(queue2)
 	wg2.Wait()
 
+	return db
+}
+
+func DbHeaderSender(ps protostream.ReadWriter) func(*Db) {
+	r := new(records.DbHeader)
+	return func(db *Db) {
+		r.DirCount = int64(len(db.Dirs))
+		r.FileCount = int64(len(db.Files))
+		check.E(ps.WriteMessage(r))
+	}
+}
+
+func DbHeaderReceiver(ps protostream.ReadWriter) func(*Db) {
+	r := new(records.DbHeader)
+	return func(db *Db) {
+		check.E(ps.ReadMessage(r))
+		db.Dirs = make([]Dir, r.DirCount)
+		db.Files = make([]*File, r.FileCount)
+	}
+}
+
+func (db *Db) codec(headerCodec func(*Db), dirCodec func(*Dir), fileCodec func(**File)) {
+	headerCodec(db)
+	dirs := db.Dirs
+	for dirI := range dirs {
+		dirCodec(&dirs[dirI])
+	}
+	files := db.Files
+	for fileI := range files {
+		fileCodec(&files[fileI])
+	}
+}
+
+func (db *Db) Send(ps protostream.ReadWriter) {
+	db.codec(DbHeaderSender(ps), DirRecordSender(ps), FileRecordSender(ps))
+}
+
+func RecvDb(ps protostream.ReadWriter) *Db {
+	db := new(Db)
+	db.codec(DbHeaderReceiver(ps), DirRecordReceiver(ps), FileRecordReceiver(ps, db))
 	return db
 }

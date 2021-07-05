@@ -30,21 +30,9 @@ func serveConn(conn net.Conn, db *Db, basePath string) (err error) {
 		check.E(ps.ReadMessage(command))
 		switch command.Op {
 		case records.Command_GETDB:
-			serveDb(ps, db)
+			db.Send(ps)
 		case records.Command_GETFILE:
 		}
 	}
 	return
-}
-
-func serveDb(ps protostream.ReadWriter, db *Db) {
-	check.E(ps.WriteMessage(DbHeaderRecordBuilder()(db)))
-	drb := DirRecordBuilder()
-	for dirI := range db.Dirs {
-		check.E(ps.WriteMessage(drb(&db.Dirs[dirI])))
-	}
-	frb := FileRecordBuilder()
-	for _, file := range db.Files {
-		check.E(ps.WriteMessage(frb(file)))
-	}
 }

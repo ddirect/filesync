@@ -6,10 +6,10 @@ import (
 	"github.com/ddirect/protostream"
 )
 
-func CommandSender(rw protostream.ReadWriter) func(records.Command_Op) {
+func CommandSender(ps protostream.ReadWriter) func(records.Command_Op) {
 	r := new(records.Command)
 	return func(op records.Command_Op) {
 		r.Op = op
-		check.E(rw.WriteMessage(r))
+		check.E(ps.WriteMessage(r))
 	}
 }

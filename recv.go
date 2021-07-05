@@ -20,4 +20,5 @@ func recv(db *Db, basePath string, netAddr NetAddr) {
 	ps := protostream.New(conn)
 	sendCommand := CommandSender(ps)
 	sendCommand(records.Command_GETDB)
+	_ = RecvDb(ps)
 }
