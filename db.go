@@ -20,10 +20,11 @@ func toHashKey(x []byte) (k HashKey) {
 }
 
 type Db struct {
-	Dirs   []Dir
-	Files  []*File
-	ByHash map[HashKey]*File
-	ByPath map[string]*File
+	Dirs        []*Dir
+	Files       []*File
+	DirsByPath  map[string]*Dir
+	FilesByHash map[HashKey]*File
+	FilesByPath map[string]*File
 }
 
 func ReadDb(basePath string) *Db {
@@ -49,12 +50,12 @@ func ReadDb(basePath string) *Db {
 		}()
 	}
 
-	db := &Db{ByHash: make(map[HashKey]*File), ByPath: make(map[string]*File)}
+	db := &Db{FilesByHash: make(map[HashKey]*File), FilesByPath: make(map[string]*File)}
 
 	wg2.Add(1)
 	go func() {
 		for file := range queue2 {
-			db.ByHash[toHashKey(file.Hash)] = file
+			db.FilesByHash[toHashKey(file.Hash)] = file
 		}
 		wg2.Done()
 	}()
@@ -62,12 +63,14 @@ func ReadDb(basePath string) *Db {
 	Walk(basePath, func(relPath string) int {
 		stat, err := os.Stat(filepath.Join(basePath, relPath)) // TODO: or Lstat?
 		check.E(err)
-		db.Dirs = append(db.Dirs, Dir{relPath, stat.ModTime().UnixNano()})
+		dir := &Dir{relPath, stat.ModTime().UnixNano()}
+		db.Dirs = append(db.Dirs, dir)
+		db.DirsByPath[relPath] = dir
 		return len(db.Dirs) - 1
 	}, func(relPath string, name string, dirId int) {
 		file := &File{Path: relPath, Name: name, DirIndex: dirId}
 		db.Files = append(db.Files, file)
-		db.ByPath[relPath] = file
+		db.FilesByPath[relPath] = file
 		queue1 <- file
 	})
 
