@@ -1,14 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
+	"time"
 
 	"github.com/ddirect/check"
 	"github.com/ddirect/filemeta"
 	"github.com/ddirect/filesync/records"
+	"github.com/ddirect/format"
 	"github.com/ddirect/protostream"
 )
 
@@ -27,7 +30,30 @@ type Db struct {
 	FilesByPath map[string]*File
 }
 
-func ReadDb(basePath string) *Db {
+func newDb() *Db {
+	return &Db{
+		DirsByPath:  make(map[string]*Dir),
+		FilesByHash: make(map[HashKey]*File),
+		FilesByPath: make(map[string]*File),
+	}
+}
+
+func ReadDb(basePath string, cache bool) (db *Db) {
+	if cache {
+		var tim time.Time
+		db, tim = ReadCache(basePath)
+		if db != nil {
+			fmt.Fprintf(os.Stderr, "db cached on %s loaded\n", format.TimeMs(tim))
+		}
+	}
+	if db == nil {
+		db = readDbCore(basePath)
+		WriteCache(basePath, db)
+	}
+	return
+}
+
+func readDbCore(basePath string) *Db {
 	workers := runtime.NumCPU()
 	const queueBuf = 4000
 	queue1 := make(chan *File, queueBuf)
@@ -50,7 +76,7 @@ func ReadDb(basePath string) *Db {
 		}()
 	}
 
-	db := &Db{FilesByHash: make(map[HashKey]*File), FilesByPath: make(map[string]*File)}
+	db := newDb()
 
 	wg2.Add(1)
 	go func() {
@@ -95,20 +121,30 @@ func DbHeaderReceiver(ps protostream.ReadWriter) func(*Db) {
 	r := new(records.DbHeader)
 	return func(db *Db) {
 		check.E(ps.ReadMessage(r))
-		db.Dirs = make([]Dir, r.DirCount)
-		db.Files = make([]*File, r.FileCount)
+		da := make([]Dir, r.DirCount)
+		d := make([]*Dir, len(da))
+		for i := range d {
+			d[i] = &da[i]
+		}
+		db.Dirs = d
+		fa := make([]File, r.FileCount)
+		f := make([]*File, len(fa))
+		for i := range f {
+			f[i] = &fa[i]
+		}
+		db.Files = f
 	}
 }
 
-func (db *Db) codec(headerCodec func(*Db), dirCodec func(*Dir), fileCodec func(**File)) {
+func (db *Db) codec(headerCodec func(*Db), dirCodec func(*Dir), fileCodec func(*File)) {
 	headerCodec(db)
 	dirs := db.Dirs
-	for dirI := range dirs {
-		dirCodec(&dirs[dirI])
+	for _, dir := range dirs {
+		dirCodec(dir)
 	}
 	files := db.Files
-	for fileI := range files {
-		fileCodec(&files[fileI])
+	for _, file := range files {
+		fileCodec(file)
 	}
 }
 
@@ -117,7 +153,7 @@ func (db *Db) Send(ps protostream.ReadWriter) {
 }
 
 func RecvDb(ps protostream.ReadWriter) *Db {
-	db := new(Db)
-	db.codec(DbHeaderReceiver(ps), DirRecordReceiver(ps), FileRecordReceiver(ps, db))
+	db := newDb()
+	db.codec(DbHeaderReceiver(ps), DirRecordReceiver(ps, db), FileRecordReceiver(ps, db))
 	return db
 }

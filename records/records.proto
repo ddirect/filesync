@@ -28,3 +28,9 @@ message Command {
     }
     Op op = 1;
 }
+
+message CacheMeta {
+	string path = 1;
+	sfixed64 timeNs = 2;
+	uint64 device = 3;
+}

@@ -20,11 +20,12 @@ func DirRecordSender(ps protostream.ReadWriter) func(*Dir) {
 	}
 }
 
-func DirRecordReceiver(ps protostream.ReadWriter) func(*Dir) {
+func DirRecordReceiver(ps protostream.ReadWriter, db *Db) func(*Dir) {
 	r := new(records.Dir)
 	return func(d *Dir) {
 		check.E(ps.ReadMessage(r))
 		d.Path = r.Path
 		d.TimeNs = r.TimeNs
+		db.DirsByPath[d.Path] = d
 	}
 }

@@ -9,6 +9,7 @@ import (
 )
 
 func recv(db *Db, basePath string, netAddr NetAddr) {
+	return
 	conn, err := net.Dial(netAddr())
 	check.E(err)
 	defer func() {
@@ -20,5 +21,6 @@ func recv(db *Db, basePath string, netAddr NetAddr) {
 	ps := protostream.New(conn)
 	sendCommand := CommandSender(ps)
 	sendCommand(records.Command_GETDB)
-	_ = RecvDb(ps)
+	rdb := RecvDb(ps)
+	Sync(rdb, db, nil)
 }

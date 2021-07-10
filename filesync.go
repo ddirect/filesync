@@ -24,10 +24,12 @@ func main() {
 	var basePath string
 	var remoteAddress string
 	var bindAddress string
+	var nocache bool
 	flag.StringVar(&do, "do", "", "serve|recv")
 	flag.StringVar(&basePath, "base", "", "local path")
 	flag.StringVar(&remoteAddress, "remote", "", "remote address")
 	flag.StringVar(&bindAddress, "bind", "", "bind address")
+	flag.BoolVar(&nocache, "nocache", false, "disable directory tree caching")
 	flag.Parse()
 
 	if do == "" {
@@ -37,9 +39,9 @@ func main() {
 
 	switch do {
 	case "serve":
-		serve(ReadDb(basePath), basePath, splitNetAddr(bindAddress))
+		serve(ReadDb(basePath, !nocache), basePath, splitNetAddr(bindAddress))
 	case "recv":
-		recv(ReadDb(basePath), basePath, splitNetAddr(remoteAddress))
+		recv(ReadDb(basePath, !nocache), basePath, splitNetAddr(remoteAddress))
 	default:
 		fmt.Fprintf(os.Stderr, "unknown operation '%s'\n", do)
 	}
