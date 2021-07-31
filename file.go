@@ -1,7 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
+
+	"github.com/ddirect/filemeta"
 
 	"github.com/ddirect/check"
 	"github.com/ddirect/filesync/records"
@@ -43,5 +49,39 @@ func FileRecordReceiver(ps protostream.ReadWriter, db *Db) func(*File) {
 		f.Path = filepath.Join(db.Dirs[di].Path, f.Name)
 		db.FilesByPath[f.Path] = f
 		db.FilesByHash[toHashKey(f.Hash)] = f
+	}
+}
+
+func FileDataSender(ps protostream.ReadWriter, db *Db, basePath string) func([]byte) {
+	return func(hash []byte) {
+		f := db.FilesByHash[toHashKey(hash)]
+		if f == nil {
+			panic(errors.New("file not found in db"))
+		}
+		file, err := os.Open(filepath.Join(basePath, f.Path))
+		check.E(err)
+		check.DeferredE(file.Close)
+		check.E(ps.WriteStream(file.Read))
+	}
+}
+
+func FileDataReceiver(ps protostream.ReadWriter, basePath string) func(*File) {
+	fs := filemeta.NewFileWriter()
+	return func(f *File) {
+		check.E(fs.Open(filepath.Join(basePath, f.Path), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0664))
+		defer check.DeferredE(func() error {
+			attr, err := fs.Close(f.TimeNs)
+			if err != nil {
+				return err
+			}
+			if f.Size != attr.Size {
+				return fmt.Errorf("received %d instead of %d", attr.Size, f.Size)
+			}
+			if bytes.Compare(f.Hash, attr.Hash) != 0 {
+				return errors.New("hash mismatch on received file")
+			}
+			return nil
+		})
+		check.E(ps.ReadStream(fs.Write))
 	}
 }

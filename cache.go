@@ -72,7 +72,7 @@ func WriteCache(basePath string, db *Db) {
 	defer f.Close() // safe
 	stream := protostream.New(f)
 	db.Send(stream)
-	check.E(stream.Flush())
+	check.E(stream.Writer.Flush())
 	f1 := f
 	f = nil
 	check.E(f1.Close())

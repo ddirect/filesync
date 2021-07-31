@@ -1,51 +1,30 @@
 package main
 
 import (
-	"bytes"
+	"net"
+
+	"github.com/ddirect/check"
+	"github.com/ddirect/filesync/records"
+	"github.com/ddirect/protostream"
 )
 
-type SyncAgent interface {
-	CreateDir(string)
-	RemoveDir(string)
-	CopyFile(*File)
-	LinkFile(*File, string)
-	StashFile(*File)
-}
+type SyncActionsFactory func(sdb *Db, ddb *Db, basePath string, ps protostream.ReadWriter) SyncActions
 
-func Sync(sdb *Db, ddb *Db, agent SyncAgent) {
-	createDirs(sdb, ddb, agent)
-	syncFiles(sdb, ddb, agent)
-	removeDirs(sdb, ddb, agent)
-}
-
-func forEachMissingDir(ref []*Dir, test map[string]*Dir, action func(string)) {
-	for _, dir := range ref {
-		if test[dir.Path] == nil {
-			action(dir.Path)
+func Sync(db *Db, basePath string, netAddr NetAddr, syncActionsFactory SyncActionsFactory) {
+	conn, err := net.Dial(netAddr())
+	check.E(err)
+	defer func() {
+		if conn != nil {
+			conn.Close()
 		}
-	}
+	}()
+	syncConnection(db, basePath, conn, syncActionsFactory)
 }
 
-func createDirs(sdb *Db, ddb *Db, agent SyncAgent) {
-	forEachMissingDir(sdb.Dirs, ddb.DirsByPath, agent.CreateDir)
-}
-
-func removeDirs(sdb *Db, ddb *Db, agent SyncAgent) {
-	forEachMissingDir(ddb.Dirs, sdb.DirsByPath, agent.RemoveDir)
-}
-
-func syncFiles(sdb *Db, ddb *Db, agent SyncAgent) {
-	for _, sfile := range sdb.Files {
-		if dfile := ddb.FilesByPath[sfile.Path]; dfile != nil {
-			if bytes.Compare(sfile.Hash, dfile.Hash) == 0 {
-				continue
-			}
-			agent.StashFile(dfile)
-		}
-		if dfile := ddb.FilesByHash[toHashKey(sfile.Hash)]; dfile != nil {
-			agent.LinkFile(dfile, sfile.Path)
-		} else {
-			agent.CopyFile(sfile)
-		}
-	}
+func syncConnection(db *Db, basePath string, conn net.Conn, syncActionsFactory SyncActionsFactory) {
+	ps := protostream.New(conn)
+	SimpleCommandSender(ps)(records.Command_GETDB)
+	ps.Flush()
+	rdb := RecvDb(ps)
+	SyncCore(rdb, db, syncActionsFactory(rdb, db, basePath, ps))
 }

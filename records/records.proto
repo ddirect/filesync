@@ -27,6 +27,7 @@ message Command {
         GETFILE=2;
     }
     Op op = 1;
+    bytes hash = 2;
 }
 
 message CacheMeta {

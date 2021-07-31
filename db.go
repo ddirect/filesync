@@ -47,13 +47,13 @@ func ReadDb(basePath string, cache bool) (db *Db) {
 		}
 	}
 	if db == nil {
-		db = readDbCore(basePath)
+		db = readDbCore(basePath, filemeta.Get)
 		WriteCache(basePath, db)
 	}
 	return
 }
 
-func readDbCore(basePath string) *Db {
+func readDbCore(basePath string, fetchFunc filemeta.FetchFunc) *Db {
 	workers := runtime.NumCPU()
 	const queueBuf = 4000
 	queue1 := make(chan *File, queueBuf)
@@ -63,7 +63,7 @@ func readDbCore(basePath string) *Db {
 	for i := 0; i < workers; i++ {
 		go func() {
 			for file := range queue1 {
-				data, err := filemeta.Get(filepath.Join(basePath, file.Path))
+				data, err := fetchFunc(filepath.Join(basePath, file.Path))
 				check.E(err)
 				if attr := data.Attr; attr != nil {
 					file.Hash = attr.Hash

@@ -3,19 +3,18 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
-
-	"github.com/ddirect/check"
 )
 
 type NetAddr func() (string, string)
 
-func splitNetAddr(x string) NetAddr {
-	u, err := url.Parse(x)
-	check.E(err)
+func netAddr(address string, unix bool) NetAddr {
+	network := "tcp"
+	if unix {
+		network = "unix"
+	}
 	return func() (string, string) {
-		return u.Scheme, u.Host
+		return network, address
 	}
 }
 
@@ -25,11 +24,13 @@ func main() {
 	var remoteAddress string
 	var bindAddress string
 	var nocache bool
+	var unix bool
 	flag.StringVar(&do, "do", "", "serve|recv")
 	flag.StringVar(&basePath, "base", "", "local path")
 	flag.StringVar(&remoteAddress, "remote", "", "remote address")
 	flag.StringVar(&bindAddress, "bind", "", "bind address")
 	flag.BoolVar(&nocache, "nocache", false, "disable directory tree caching")
+	flag.BoolVar(&unix, "unix", false, "use unix sockets instead of TCP")
 	flag.Parse()
 
 	if do == "" {
@@ -39,9 +40,11 @@ func main() {
 
 	switch do {
 	case "serve":
-		serve(ReadDb(basePath, !nocache), basePath, splitNetAddr(bindAddress))
+		Serve(ReadDb(basePath, !nocache), basePath, netAddr(bindAddress, unix))
+	case "diff":
+		Sync(ReadDb(basePath, !nocache), basePath, netAddr(remoteAddress, unix), DiffActionsFactory)
 	case "recv":
-		recv(ReadDb(basePath, !nocache), basePath, splitNetAddr(remoteAddress))
+		Sync(ReadDb(basePath, !nocache), basePath, netAddr(remoteAddress, unix), RecvActionsFactory)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown operation '%s'\n", do)
 	}
