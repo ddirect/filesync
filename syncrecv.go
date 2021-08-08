@@ -46,21 +46,17 @@ func RecvActionsFactory(sdb *Db, ddb *Db, basePath string, ps protostream.ReadWr
 		CopyFile: func(f *File) {
 			sendGetFile(f.Hash)
 			recvFileData(f)
-			ddb.FilesByPath[f.Path] = f
 			ddb.FilesByHash[toHashKey(f.Hash)] = f
 			da.CopyFile(f)
 		},
 		LinkFile: func(sf *File, df *File) {
 			check.E(os.Link(fullPath(sf.Path), fullPath(df.Path)))
-			ddb.FilesByPath[df.Path] = df
 			da.LinkFile(sf, df)
 		},
 		StashFile: func(f *File) {
-			path := fullPath(randomName())
-			check.E(os.Rename(fullPath(f.Path), path))
-			delete(ddb.FilesByPath, f.Path)
-			f.Path = path
-			ddb.FilesByPath[path] = f
+			name := randomName()
+			check.E(os.Rename(fullPath(f.Path), fullPath(name)))
+			f.Path = name
 			da.StashFile(f)
 		},
 		Epilogue: func() {

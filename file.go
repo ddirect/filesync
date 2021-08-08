@@ -60,7 +60,7 @@ func FileDataSender(ps protostream.ReadWriter, db *Db, basePath string) func([]b
 		}
 		file, err := os.Open(filepath.Join(basePath, f.Path))
 		check.E(err)
-		check.DeferredE(file.Close)
+		defer check.DeferredE(file.Close)
 		check.E(ps.WriteStream(file.Read))
 	}
 }

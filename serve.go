@@ -35,7 +35,6 @@ func serveConnection(conn net.Conn, db *Db, basePath string) (err error) {
 			log.Println("serving db")
 			db.Send(ps)
 		case records.Command_GETFILE:
-			log.Printf("serving %02x", command.Hash)
 			serveFile(command.Hash)
 		default:
 			panic(fmt.Errorf("unknown command %v\n", command.Op))

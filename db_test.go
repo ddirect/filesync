@@ -42,6 +42,8 @@ func checkDbConsistency(errf errorfunc, db *Db) {
 	for _, d := range db.Dirs {
 		if x := db.DirsByPath[d.Path]; x == nil {
 			errf("db.DirsByPath['%s'] not found - found in db.Dirs", d.Path)
+		} else if x != d {
+			errf("db.DirsByPath['%s'] doesn't match db.Dirs", d.Path)
 		}
 	}
 	byHash := make(map[HashKey]*File)
@@ -94,22 +96,20 @@ func checkSerDes(errf errorfunc, db *Db) {
 	}
 }
 
-func _TestDb(t *testing.T) {
+func TestDb(t *testing.T) {
 	rnd := xrand.New()
 
 	base := t.TempDir()
-	// base := "x"
-	// check.E(os.MkdirAll(base, 0775))
 
-	tree := createTree(rnd)
-	//tree.EachFileRecursive(show)
-	st := commit1(tree, rnd, base)
+	tree := ft.NewRandomTree(rnd, treeOptions())
+	tree.EachFileRecursive(show)
+	st := ft.CommitMixed(rnd, tree, ft.DefaultMixes(), base)
 
 	db := readDbCore(base, filemeta.Refresh)
 
 	errf := t.Errorf
-	if len(db.FilesByHash) != st.uniqueHashes {
-		errf("len(db.FilesByHash) != uniqueHashes")
+	if len(db.FilesByHash) != st.UniqueHashes {
+		errf("len(db.FilesByHash) != UniqueHashes")
 	}
 	checkDbConsistency(errf, db)
 	compareDir(errf, tree, db)
