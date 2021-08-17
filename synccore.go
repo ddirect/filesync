@@ -34,6 +34,15 @@ func forEachMissingDir(ref []*Dir, test map[string]*Dir, action func(*Dir)) {
 	}
 }
 
+func forEachMissingDirReverse(ref []*Dir, test map[string]*Dir, action func(*Dir)) {
+	for i := len(ref) - 1; i >= 0; i-- {
+		x := ref[i]
+		if test[x.Path] == nil {
+			action(x)
+		}
+	}
+}
+
 func forEachMissingFile(ref []*File, test map[string]*File, action func(*File)) {
 	for _, x := range ref {
 		if test[x.Path] == nil {
@@ -47,7 +56,7 @@ func createDirs(sdb *Db, ddb *Db, actions SyncActions) {
 }
 
 func removeDirs(sdb *Db, ddb *Db, actions SyncActions) {
-	forEachMissingDir(ddb.Dirs, sdb.DirsByPath, actions.RemoveDir)
+	forEachMissingDirReverse(ddb.Dirs, sdb.DirsByPath, actions.RemoveDir)
 }
 
 func removeFiles(sdb *Db, ddb *Db, actions SyncActions) {

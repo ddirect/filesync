@@ -38,7 +38,7 @@ func TestSyncRelated(t *testing.T) {
 
 	// the tree instance is used first to build the destination tree
 	// then the source tree; it is then kept as reference of the latter
-	tree := ft.NewRandomTree(rnd, o)
+	tree, nameFactory := ft.NewRandomTree2(rnd, o)
 	dataRnd1, dataRnd2 := xrand.NewPair()
 
 	sBase := t.TempDir()
@@ -53,6 +53,12 @@ func TestSyncRelated(t *testing.T) {
 	excluded := clone(dExc)
 	notChanged := clone(files[:len(files)*zones.NoChange/100])
 
+	tree.EachDirRecursive(func(d *ft.Dir) {
+		//rename 1/10 of the directories
+		if rnd.Intn(10) == 0 {
+			d.Name = nameFactory()
+		}
+	})
 	ft.CommitDirs(tree, sBase)
 	sDs, sExc := ft.CommitZonedFilesMixed(dataRnd2, rnd, files, zones, mixes, sBase, true)
 	if !reflect.DeepEqual(notChanged, files[:len(notChanged)]) {
