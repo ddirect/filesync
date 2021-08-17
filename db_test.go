@@ -46,7 +46,7 @@ func checkDbConsistency(errf errorfunc, db *Db) {
 			errf("db.DirsByPath['%s'] doesn't match db.Dirs", d.Path)
 		}
 	}
-	byHash := make(map[HashKey]*File)
+	byHash := make(map[filemeta.HashKey]*File)
 	for _, f := range db.Files {
 		parent, name := filepath.Split(f.Path)
 		if parent != "" {
@@ -63,7 +63,7 @@ func checkDbConsistency(errf errorfunc, db *Db) {
 		} else if x != f {
 			errf("db.FilesByPath['%s'] doesn't match db.Files", name)
 		}
-		hashKey := toHashKey(f.Hash)
+		hashKey := filemeta.ToHashKey(f.Hash)
 		if x := db.FilesByHash[hashKey]; x == nil {
 			errf("db.FilesByHash[%02x] not found - found in db.Files - %s", f.Hash, name)
 		}
@@ -102,7 +102,6 @@ func TestDb(t *testing.T) {
 	base := t.TempDir()
 
 	tree := ft.NewRandomTree(rnd, treeOptions())
-	tree.EachFileRecursive(show)
 	st := ft.CommitMixed(rnd, tree, ft.DefaultMixes(), base)
 
 	db := readDbCore(base, filemeta.Refresh)

@@ -49,3 +49,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown operation '%s'\n", do)
 	}
 }
+
+
+/*
+Issues:
+- sour and dest on-disk and global db size would be useful (but filemetatool does this already)
+- test synching with missing metadata (tests run with filemeta.Refresh at the moment)
+- separate deleted links from actual deletions (inferred by "no more links to file")
+*/

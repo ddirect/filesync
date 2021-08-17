@@ -15,25 +15,18 @@ import (
 	"github.com/ddirect/protostream"
 )
 
-type HashKey [filemeta.HashSize]byte
-
-func toHashKey(x []byte) (k HashKey) {
-	copy(k[:], x)
-	return
-}
-
 type Db struct {
 	Dirs        []*Dir
 	Files       []*File
 	DirsByPath  map[string]*Dir
-	FilesByHash map[HashKey]*File
+	FilesByHash map[filemeta.HashKey]*File
 	FilesByPath map[string]*File
 }
 
 func newDb() *Db {
 	return &Db{
 		DirsByPath:  make(map[string]*Dir),
-		FilesByHash: make(map[HashKey]*File),
+		FilesByHash: make(map[filemeta.HashKey]*File),
 		FilesByPath: make(map[string]*File),
 	}
 }
@@ -81,7 +74,7 @@ func readDbCore(basePath string, fetchFunc filemeta.FetchFunc) *Db {
 	wg2.Add(1)
 	go func() {
 		for file := range queue2 {
-			db.FilesByHash[toHashKey(file.Hash)] = file
+			db.FilesByHash[filemeta.ToHashKey(file.Hash)] = file
 		}
 		wg2.Done()
 	}()

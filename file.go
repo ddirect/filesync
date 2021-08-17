@@ -48,13 +48,13 @@ func FileRecordReceiver(ps protostream.ReadWriter, db *Db) func(*File) {
 
 		f.Path = filepath.Join(db.Dirs[di].Path, f.Name)
 		db.FilesByPath[f.Path] = f
-		db.FilesByHash[toHashKey(f.Hash)] = f
+		db.FilesByHash[filemeta.ToHashKey(f.Hash)] = f
 	}
 }
 
 func FileDataSender(ps protostream.ReadWriter, db *Db, basePath string) func([]byte) {
 	return func(hash []byte) {
-		f := db.FilesByHash[toHashKey(hash)]
+		f := db.FilesByHash[filemeta.ToHashKey(hash)]
 		if f == nil {
 			panic(errors.New("file not found in db"))
 		}

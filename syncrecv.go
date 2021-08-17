@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ddirect/filemeta"
 	"github.com/ddirect/xrand"
 
 	"github.com/ddirect/check"
@@ -46,7 +47,7 @@ func RecvActionsFactory(sdb *Db, ddb *Db, basePath string, ps protostream.ReadWr
 		CopyFile: func(f *File) {
 			sendGetFile(f.Hash)
 			recvFileData(f)
-			ddb.FilesByHash[toHashKey(f.Hash)] = f
+			ddb.FilesByHash[filemeta.ToHashKey(f.Hash)] = f
 			da.CopyFile(f)
 		},
 		LinkFile: func(sf *File, df *File) {

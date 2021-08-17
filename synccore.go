@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+
+	"github.com/ddirect/filemeta"
 )
 
 type syncActions struct {
@@ -60,7 +62,7 @@ func syncFiles(sdb *Db, ddb *Db, actions SyncActions) {
 			}
 			actions.StashFile(dfile)
 		}
-		if dfile := ddb.FilesByHash[toHashKey(sfile.Hash)]; dfile != nil {
+		if dfile := ddb.FilesByHash[filemeta.ToHashKey(sfile.Hash)]; dfile != nil {
 			actions.LinkFile(dfile, sfile)
 		} else {
 			actions.CopyFile(sfile)
