@@ -25,7 +25,7 @@ func main() {
 	var bindAddress string
 	var nocache bool
 	var unix bool
-	flag.StringVar(&do, "do", "", "serve|recv")
+	flag.StringVar(&do, "do", "", "serve|diff|recv")
 	flag.StringVar(&basePath, "base", "", "local path")
 	flag.StringVar(&remoteAddress, "remote", "", "remote address")
 	flag.StringVar(&bindAddress, "bind", "", "bind address")

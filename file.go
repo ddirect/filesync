@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -56,7 +57,7 @@ func FileDataSender(ps protostream.ReadWriter, db *Db, basePath string) func([]b
 	return func(hash []byte) {
 		f := db.FilesByHash[filemeta.ToHashKey(hash)]
 		if f == nil {
-			panic(errors.New("file not found in db"))
+			panic(fmt.Errorf("file hash '%s' not found in db", hex.EncodeToString(hash)))
 		}
 		file, err := os.Open(filepath.Join(basePath, f.Path))
 		check.E(err)

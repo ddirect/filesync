@@ -99,7 +99,7 @@ func checkSerDes(errf errorfunc, db *Db) {
 func TestDb(t *testing.T) {
 	rnd := xrand.New()
 
-	base := t.TempDir()
+	base := ft.TempDir(t, "sour")
 
 	tree := ft.NewRandomTree(rnd, treeOptions())
 	st := ft.CommitMixed(rnd, tree, ft.DefaultMixes(), base)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"net"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -12,16 +13,28 @@ import (
 	"github.com/ddirect/xrand"
 )
 
+type checkSyncOptions struct {
+	missingMeta int //percent
+}
+
 func TestSyncToEmpty(t *testing.T) {
+	testSyncToEmpty(t, checkSyncOptions{})
+}
+
+func TestSyncToEmptyPartialMeta(t *testing.T) {
+	testSyncToEmpty(t, checkSyncOptions{25})
+}
+
+func testSyncToEmpty(t *testing.T, checkOpt checkSyncOptions) {
 	rnd := xrand.New()
 
-	sBase := t.TempDir()
-	dBase := t.TempDir()
+	sBase := ft.TempDir(t, "sour")
+	dBase := ft.TempDir(t, "dest")
 
 	sTree := ft.NewRandomTree(rnd, treeOptions())
 	ft.CommitMixed(rnd, sTree, ft.DefaultMixes(), sBase)
 
-	checkSync(t, sBase, sTree, dBase)
+	checkSync(t, sBase, sTree, dBase, checkOpt)
 }
 
 func clone(s []*ft.File) []*ft.File {
@@ -31,6 +44,14 @@ func clone(s []*ft.File) []*ft.File {
 }
 
 func TestSyncRelated(t *testing.T) {
+	testSyncRelated(t, checkSyncOptions{})
+}
+
+func TestSyncRelatedPartialMeta(t *testing.T) {
+	testSyncRelated(t, checkSyncOptions{25})
+}
+
+func testSyncRelated(t *testing.T, checkOpt checkSyncOptions) {
 	rnd := xrand.New()
 
 	o := treeOptions()
@@ -41,8 +62,8 @@ func TestSyncRelated(t *testing.T) {
 	tree, nameFactory := ft.NewRandomTree2(rnd, o)
 	dataRnd1, dataRnd2 := xrand.NewPair()
 
-	sBase := t.TempDir()
-	dBase := t.TempDir()
+	sBase := ft.TempDir(t, "sour")
+	dBase := ft.TempDir(t, "dest")
 
 	mixes := ft.DefaultMixes()
 	zones := ft.DefaultZones()
@@ -72,16 +93,53 @@ func TestSyncRelated(t *testing.T) {
 	}
 
 	tree.RemoveFiles(sExc)
-	checkSync(t, sBase, tree, dBase)
+	checkSync(t, sBase, tree, dBase, checkOpt)
 }
 
-func checkSync(t *testing.T, sBase string, sTree *filetest.Dir, dBase string) {
+func checkSync(t *testing.T, sBase string, sTree *filetest.Dir, dBase string, opt checkSyncOptions) {
+	fetch := filemeta.Refresh
+	onlyWithMeta := false
+	if opt.missingMeta > 0 {
+		// precalculate the metadata and use it for the dbs; note that this needs to be
+		// done in advance (not in readDbCore) or links to files which will get a hash
+		// won't be synchronized
+		rnd := xrand.New()
+		refresh := func(base string) {
+			Walk(base,
+				func(relPath string) int {
+					return 0
+				},
+				func(relPath string, name string, dirId int) {
+					if rnd.Intn(100) >= opt.missingMeta {
+						check.E(filemeta.Refresh(filepath.Join(base, relPath)).Error)
+					}
+				})
+		}
+		refresh(sBase)
+		refresh(dBase)
+		fetch = filemeta.Get
+		onlyWithMeta = true
+	}
+
 	c1, c2 := net.Pipe()
 	go func() {
-		check.E(serveConnection(c1, readDbCore(sBase, filemeta.Refresh), sBase))
+		check.E(serveConnection(c1, readDbCore(sBase, fetch), sBase))
 	}()
-	syncConnection(readDbCore(dBase, filemeta.Refresh), dBase, c2, RecvActionsFactory)
-	dTree := filetest.NewDirFromStorage(dBase)
+	syncConnection(readDbCore(dBase, fetch), dBase, c2, RecvActionsFactory)
+
+	var dTree *filetest.Dir
+	if onlyWithMeta {
+		filterFactory := func(base string) func(e ft.Entry) bool {
+			return func(e ft.Entry) bool {
+				attr := filemeta.Get(filepath.Join(base, e.Path())).Attr
+				return attr != nil && len(attr.Hash) > 0
+			}
+		}
+		sTree = filetest.NewDirFromStorageFiltered(sBase, filterFactory(sBase))
+		dTree = filetest.NewDirFromStorageFiltered(dBase, filterFactory(dBase))
+	} else {
+		dTree = filetest.NewDirFromStorage(dBase)
+	}
 	if !sTree.Compare(dTree) {
 		t.Fail()
 	}

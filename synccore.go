@@ -65,6 +65,9 @@ func removeFiles(sdb *Db, ddb *Db, actions SyncActions) {
 
 func syncFiles(sdb *Db, ddb *Db, actions SyncActions) {
 	for _, sfile := range sdb.Files {
+		if len(sfile.Hash) == 0 {
+			continue
+		}
 		if dfile := ddb.FilesByPath[sfile.Path]; dfile != nil {
 			if bytes.Compare(sfile.Hash, dfile.Hash) == 0 {
 				continue
