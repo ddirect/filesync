@@ -16,6 +16,13 @@ func treeOptions() ft.TreeOptions {
 	return o
 }
 
+func flatTreeOptions() ft.TreeOptions {
+	o := ft.DefaultTreeOptions()
+	o.FileCount = ft.MinMax{100, 100}
+	o.Depth = -1
+	return o
+}
+
 func show(f *ft.File) {
 	fmt.Println(f.Path())
 }

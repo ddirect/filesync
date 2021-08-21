@@ -1,9 +1,11 @@
 package main
 
 import (
+	"io/fs"
 	"net"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 
 	"github.com/ddirect/check"
@@ -17,7 +19,7 @@ type checkSyncOptions struct {
 	missingMeta int //percent
 }
 
-func TestSyncToEmpty(t *testing.T) {
+func TestSyncToEmptyFullMeta(t *testing.T) {
 	testSyncToEmpty(t, checkSyncOptions{})
 }
 
@@ -43,7 +45,7 @@ func clone(s []*ft.File) []*ft.File {
 	return d
 }
 
-func TestSyncRelated(t *testing.T) {
+func TestSyncRelatedFullMeta(t *testing.T) {
 	testSyncRelated(t, checkSyncOptions{})
 }
 
@@ -116,7 +118,8 @@ func checkSync(t *testing.T, sBase string, sTree *filetest.Dir, dBase string, op
 				})
 		}
 		refresh(sBase)
-		refresh(dBase)
+		// can't refresh part of dBase or the test will fail due to the additional
+		// files tracked in the destination
 		fetch = filemeta.Get
 		onlyWithMeta = true
 	}
@@ -138,9 +141,41 @@ func checkSync(t *testing.T, sBase string, sTree *filetest.Dir, dBase string, op
 		sTree = filetest.NewDirFromStorageFiltered(sBase, filterFactory(sBase))
 		dTree = filetest.NewDirFromStorageFiltered(dBase, filterFactory(dBase))
 	} else {
+		checkMetaValidAndFilesUnique(t, dBase)
 		dTree = filetest.NewDirFromStorage(dBase)
 	}
 	if !sTree.Compare(dTree) {
 		t.Fail()
+	}
+}
+
+func checkMetaValidAndFilesUnique(t *testing.T, base string) {
+	async := filemeta.AsyncOperations(filemeta.OpGet, 0, 0)
+	go func() {
+		defer close(async.FileIn)
+		filepath.WalkDir(base, func(path string, d fs.DirEntry, err error) error {
+			check.E(err)
+			if !d.IsDir() {
+				async.FileIn <- path
+			}
+			return nil
+		})
+	}()
+	inodes := make(map[filemeta.HashKey]uint64)
+	for data := range async.DataOut {
+		check.E(data.Error)
+		if data.Attr == nil {
+			t.Fatal("missing attributes on", data.Path)
+			continue
+		}
+		si := data.Info.Sys().(*syscall.Stat_t)
+		hashKey := filemeta.ToHashKey(data.Attr.Hash)
+		if inode, ok := inodes[hashKey]; !ok {
+			inodes[hashKey] = si.Ino
+		} else {
+			if inode != si.Ino {
+				t.Fatal("found same hash on multiple files")
+			}
+		}
 	}
 }
