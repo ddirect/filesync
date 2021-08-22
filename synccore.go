@@ -20,7 +20,9 @@ type SyncActions *syncActions
 
 func SyncCore(sdb *Db, ddb *Db, actions SyncActions) {
 	createDirs(sdb, ddb, actions)
-	syncFiles(sdb, ddb, actions)
+	stashFiles(sdb, ddb, actions.StashFile)
+	copyFiles(sdb, ddb, actions.CopyFile)
+	linkFiles(sdb, ddb, actions.LinkFile)
 	removeFiles(sdb, ddb, actions)
 	removeDirs(sdb, ddb, actions)
 	actions.Epilogue()
@@ -63,8 +65,10 @@ func removeFiles(sdb *Db, ddb *Db, actions SyncActions) {
 	forEachMissingFile(ddb.Files, sdb.FilesByPath, actions.RemoveFile)
 }
 
-func syncFiles(sdb *Db, ddb *Db, actions SyncActions) {
-	for _, sfile := range sdb.Files {
+func stashFiles(sdb *Db, ddb *Db, stashFile func(*File)) {
+	var w int
+	files := sdb.Files
+	for _, sfile := range files {
 		if len(sfile.Hash) == 0 {
 			continue
 		}
@@ -72,12 +76,30 @@ func syncFiles(sdb *Db, ddb *Db, actions SyncActions) {
 			if bytes.Compare(sfile.Hash, dfile.Hash) == 0 {
 				continue
 			}
-			actions.StashFile(dfile)
+			stashFile(dfile)
 		}
-		if dfile := ddb.FilesByHash[filemeta.ToHashKey(sfile.Hash)]; dfile != nil {
-			actions.LinkFile(dfile, sfile)
+		files[w] = sfile
+		w++
+	}
+	sdb.Files = files[:w]
+}
+
+func copyFiles(sdb *Db, ddb *Db, copyFile func(*File)) {
+	var w int
+	files := sdb.Files
+	for _, sfile := range files {
+		if dfile := ddb.FilesByHash[filemeta.ToHashKey(sfile.Hash)]; dfile == nil {
+			copyFile(sfile)
 		} else {
-			actions.CopyFile(sfile)
+			files[w] = sfile
+			w++
 		}
+	}
+	sdb.Files = files[:w]
+}
+
+func linkFiles(sdb *Db, ddb *Db, linkFile func(*File, *File)) {
+	for _, sfile := range sdb.Files {
+		linkFile(ddb.FilesByHash[filemeta.ToHashKey(sfile.Hash)], sfile)
 	}
 }
