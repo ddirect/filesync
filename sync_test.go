@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/fs"
 	"net"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"github.com/ddirect/filemeta"
 	"github.com/ddirect/filetest"
 	ft "github.com/ddirect/filetest"
+	"github.com/ddirect/format"
 	"github.com/ddirect/xrand"
 )
 
@@ -67,12 +69,14 @@ func testSyncRelated(t *testing.T, checkOpt checkSyncOptions) {
 	sBase := ft.TempDir(t, "sour")
 	dBase := ft.TempDir(t, "dest")
 
-	mixes := ft.DefaultMixes()
+	sMixes := ft.DefaultMixes()
+	dMixes := sMixes
+	dMixes.Created = 100 // create only unique files, or the final unicity test will fail
 	zones := ft.DefaultZones()
 	files := tree.AllFilesSlice()
 
 	ft.CommitDirs(tree, dBase)
-	dDs, dExc := ft.CommitZonedFilesMixed(dataRnd1, rnd, files, zones, mixes, dBase, false)
+	dDs, dExc := ft.CommitZonedFilesMixed(dataRnd1, rnd, files, zones, dMixes, dBase, false)
 	excluded := clone(dExc)
 	notChanged := clone(files[:len(files)*zones.NoChange/100])
 
@@ -83,13 +87,15 @@ func testSyncRelated(t *testing.T, checkOpt checkSyncOptions) {
 		}
 	})
 	ft.CommitDirs(tree, sBase)
-	sDs, sExc := ft.CommitZonedFilesMixed(dataRnd2, rnd, files, zones, mixes, sBase, true)
+	sDs, sExc := ft.CommitZonedFilesMixed(dataRnd2, rnd, files, zones, sMixes, sBase, true)
 	if !reflect.DeepEqual(notChanged, files[:len(notChanged)]) {
 		t.Fatal("equal zone mismatch")
 	}
-	if sDs != dDs {
-		t.Fatalf("different stats: %s <-> %s", sDs, dDs)
-	}
+	tab := ft.DirStatsTable()
+	tab.Heading = format.TableRow{".", "sour", "dest"}
+	sDs.AppendToTable(tab)
+	dDs.AppendToTable(tab)
+	fmt.Println(tab)
 	if reflect.DeepEqual(sExc, excluded) {
 		t.Fatal("same files excluded")
 	}
@@ -161,12 +167,17 @@ func checkMetaValidAndFilesUnique(t *testing.T, base string) {
 			return nil
 		})
 	}()
+	defer func() {
+		// ensure the tree is walked completely before leaving, which will cause
+		// the tree to be deleted and the walk goroutine to panic
+		for range async.DataOut {
+		}
+	}()
 	inodes := make(map[filemeta.HashKey]uint64)
 	for data := range async.DataOut {
 		check.E(data.Error)
 		if data.Attr == nil {
 			t.Fatal("missing attributes on", data.Path)
-			continue
 		}
 		si := data.Info.Sys().(*syscall.Stat_t)
 		hashKey := filemeta.ToHashKey(data.Attr.Hash)

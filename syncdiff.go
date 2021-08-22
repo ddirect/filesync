@@ -19,7 +19,7 @@ func (s *stats) update(file *File) {
 
 func (s *stats) appendRow(t *format.Table, name string) {
 	if s.count > 0 {
-		t.Append(name, s.count, format.Size(s.size))
+		t.AppendRow(name, s.count, format.Size(s.size))
 	}
 }
 
@@ -51,13 +51,13 @@ func DiffActionsFactory(sdb *Db, ddb *Db, basePath string, ps protostream.ReadWr
 		},
 		Epilogue: func() {
 			var s, d, f format.Table
-			s.Append(".", "remote", "local")
-			s.Append("total dirs", sdirCount, ddirCount)
-			s.Append("total files", sfileCount, dfileCount)
-			d.Append("dirs", "count")
-			d.Append("created", createdDirs)
-			d.Append("removed", removedDirs)
-			f.Append("files", "count", "size")
+			s.AppendRow(".", "remote", "local")
+			s.AppendRow("total dirs", sdirCount, ddirCount)
+			s.AppendRow("total files", sfileCount, dfileCount)
+			d.AppendRow("dirs", "count")
+			d.AppendRow("created", createdDirs)
+			d.AppendRow("removed", removedDirs)
+			f.AppendRow("files", "count", "size")
 			copied.appendRow(&f, "copied")
 			linked.appendRow(&f, "linked")
 			removed.appendRow(&f, "removed")
