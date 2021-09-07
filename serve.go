@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 
@@ -18,7 +20,9 @@ func Serve(db *Db, basePath string, netAddr NetAddr) {
 		conn, err := l.Accept()
 		check.El(err)
 		log.Printf("connection from %s", conn.RemoteAddr())
-		check.El(serveConnection(conn, db, basePath))
+		if check.El(serveConnection(conn, db, basePath)) {
+			log.Printf("connection closed")
+		}
 	}
 }
 
@@ -29,7 +33,12 @@ func serveConnection(conn net.Conn, db *Db, basePath string) (err error) {
 	command := new(records.Command)
 	serveFile := FileDataSender(ps, db, basePath)
 	for {
-		check.E(ps.ReadMessage(command))
+		if err = ps.ReadMessage(command); err != nil {
+			if errors.Is(err, io.EOF) {
+				err = nil
+			}
+			return
+		}
 		switch command.Op {
 		case records.Command_GETDB:
 			log.Println("serving db")
