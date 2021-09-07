@@ -104,7 +104,7 @@ func testSyncRelated(t *testing.T, checkOpt checkSyncOptions) {
 }
 
 func checkSync(t *testing.T, sBase string, sTree *filetest.Dir, dBase string, opt checkSyncOptions) {
-	fetch := filemeta.Refresh
+	fetch := filemeta.OpRefresh
 	onlyWithMeta := false
 	if opt.missingMeta > 0 {
 		// precalculate the metadata and use it for the dbs; note that this needs to be
@@ -125,7 +125,7 @@ func checkSync(t *testing.T, sBase string, sTree *filetest.Dir, dBase string, op
 		refresh(sBase)
 		// can't refresh part of dBase or the test will fail due to the additional
 		// files tracked in the destination
-		fetch = filemeta.Get
+		fetch = filemeta.OpGet
 		onlyWithMeta = true
 	}
 

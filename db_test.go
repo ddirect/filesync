@@ -104,7 +104,7 @@ func TestDb(t *testing.T) {
 	tree := ft.NewRandomTree(rnd, treeOptions())
 	st := ft.CommitMixed(rnd, tree, ft.DefaultMixes(), base)
 
-	db := readDbCore(base, filemeta.Refresh)
+	db := readDbCore(base, filemeta.OpRefresh)
 
 	errf := t.Errorf
 	if len(db.FilesByHash) != st.UniqueHashes {
