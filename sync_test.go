@@ -6,7 +6,6 @@ import (
 	"net"
 	"path/filepath"
 	"reflect"
-	"syscall"
 	"testing"
 
 	"github.com/ddirect/check"
@@ -140,8 +139,7 @@ func checkSync(t *testing.T, sBase string, sTree *filetest.Dir, dBase string, op
 	if onlyWithMeta {
 		filterFactory := func(base string) func(e ft.Entry) bool {
 			return func(e ft.Entry) bool {
-				attr := filemeta.Get(filepath.Join(base, e.Path())).Attr
-				return attr != nil && len(attr.Hash) > 0
+				return len(filemeta.Get(filepath.Join(base, e.Path())).Hash) > 0
 			}
 		}
 		sTree = filetest.NewDirFromStorageFiltered(sBase, filterFactory(sBase))
@@ -176,15 +174,14 @@ func checkMetaValidAndFilesUnique(t *testing.T, base string) {
 	inodes := make(map[filemeta.HashKey]uint64)
 	for data := range async.DataOut {
 		check.E(data.Error)
-		if data.Attr == nil {
-			t.Fatal("missing attributes on", data.Path)
+		if len(data.Hash) == 0 {
+			t.Fatal("missing hash on", data.Path)
 		}
-		si := data.Info.Sys().(*syscall.Stat_t)
-		hashKey := filemeta.ToHashKey(data.Attr.Hash)
+		hashKey := filemeta.ToHashKey(data.Hash)
 		if inode, ok := inodes[hashKey]; !ok {
-			inodes[hashKey] = si.Ino
+			inodes[hashKey] = data.Inode
 		} else {
-			if inode != si.Ino {
+			if inode != data.Inode {
 				t.Fatal("found same hash on multiple files")
 			}
 		}

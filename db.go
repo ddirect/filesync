@@ -58,10 +58,10 @@ func readDbCore(basePath string, fetchFunc filemeta.FetchFunc) *Db {
 			for file := range queue1 {
 				data := fetchFunc(filepath.Join(basePath, file.Path))
 				check.E(data.Error)
-				if attr := data.Attr; attr != nil {
-					file.Hash = attr.Hash
-					file.TimeNs = attr.TimeNs
-					file.Size = attr.Size
+				if len(data.Hash) > 0 {
+					file.Hash = data.Hash
+					file.TimeNs = data.ModTimeNs
+					file.Size = data.Size
 					queue2 <- file
 				}
 			}
