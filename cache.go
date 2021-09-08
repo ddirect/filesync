@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	"github.com/ddirect/check"
 	"github.com/ddirect/filemeta"
@@ -65,7 +64,7 @@ func WriteCache(basePath string, db *Db) {
 	fi, err := sys.Stat(path)
 	check.E(err)
 	meta := records.NewCacheMeta(path, fi.Device)
-	f, err := os.Create(filepath.Join(ensureCacheDir(), strconv.FormatInt(meta.TimeNs, 10)))
+	f, err := os.Create(filepath.Join(ensureCacheDir(), fmt.Sprintf("%0.19d", meta.TimeNs)))
 	check.E(err)
 	defer f.Close() // safe
 	stream := protostream.New(f)
