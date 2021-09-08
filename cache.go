@@ -20,7 +20,12 @@ func ensureCacheDir() string {
 	return d
 }
 
-func ReadCache(basePath string) (db *Db, cand *records.CacheMeta) {
+type CacheInfo struct {
+	records.CacheMeta
+	File string
+}
+
+func ReadCache(basePath string) (db *Db, cand *CacheInfo) {
 	cacheDir := ensureCacheDir()
 	path := check.SE(filepath.Abs(basePath))
 	fi, err := sys.Stat(path)
@@ -29,27 +34,24 @@ func ReadCache(basePath string) (db *Db, cand *records.CacheMeta) {
 	check.E(err)
 
 	var toRemove []string
-	var cacheFile string
 	for _, e := range entries {
-		name := filepath.Join(cacheDir, e.Name())
-		meta := new(records.CacheMeta)
-		if filemeta.ReadCustom(name, cacheAttr, meta) == nil {
-			if meta.Path == path && meta.Device == fi.Device {
+		ci := &CacheInfo{File: filepath.Join(cacheDir, e.Name())}
+		if filemeta.ReadCustom(ci.File, cacheAttr, ci) == nil {
+			if ci.Path == path && ci.Device == fi.Device {
 				if cand != nil {
-					toRemove = append(toRemove, cand.Path)
+					toRemove = append(toRemove, cand.File)
 				}
-				cand = meta
-				cacheFile = name
+				cand = ci
 			}
 		} else {
-			toRemove = append(toRemove, name)
+			toRemove = append(toRemove, ci.File)
 		}
 	}
 	for _, x := range toRemove {
 		check.E(os.Remove(x))
 	}
 	if cand != nil {
-		db = readDbFromFile(cacheFile)
+		db = readDbFromFile(cand.File)
 	}
 	return
 }

@@ -30,12 +30,16 @@ func newDb() *Db {
 	}
 }
 
-func ReadDb(basePath string, cache bool) (db *Db) {
+func ReadDb(basePath string, cache bool) *Db {
+	db, _ := ReadDb2(basePath, cache)
+	return db
+}
+
+func ReadDb2(basePath string, cache bool) (db *Db, cacheInfo *CacheInfo) {
 	if cache {
-		var crec *records.CacheMeta
-		db, crec = ReadCache(basePath)
+		db, cacheInfo = ReadCache(basePath)
 		if db != nil {
-			fmt.Fprintf(os.Stderr, "db cached on %s for '%s' loaded\n", format.TimeMs(crec.Time()), crec.Path)
+			fmt.Fprintf(os.Stderr, "db cached on %s for '%s' loaded\n", format.TimeMs(cacheInfo.Time()), cacheInfo.Path)
 		}
 	}
 	if db == nil {

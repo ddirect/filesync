@@ -46,7 +46,11 @@ func main() {
 	case "fulldiff":
 		Sync(ReadDb(basePath, !nocache), basePath, netAddr(remoteAddress, unix), FullDiffActionsFactory)
 	case "recv":
-		Sync(ReadDb(basePath, !nocache), basePath, netAddr(remoteAddress, unix), RecvActionsFactory)
+		db, ci := ReadDb2(basePath, !nocache)
+		if ci != nil {
+			defer os.Remove(ci.File)
+		}
+		Sync(db, basePath, netAddr(remoteAddress, unix), RecvActionsFactory)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown operation '%s'\n", do)
 	}
