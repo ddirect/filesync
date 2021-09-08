@@ -25,7 +25,7 @@ func main() {
 	var bindAddress string
 	var nocache bool
 	var unix bool
-	flag.StringVar(&do, "do", "", "serve|diff|recv")
+	flag.StringVar(&do, "do", "", "serve|diff|fulldiff|recv")
 	flag.StringVar(&basePath, "base", "", "local path")
 	flag.StringVar(&remoteAddress, "remote", "", "remote address")
 	flag.StringVar(&bindAddress, "bind", "", "bind address")
@@ -43,13 +43,14 @@ func main() {
 		Serve(ReadDb(basePath, !nocache), basePath, netAddr(bindAddress, unix))
 	case "diff":
 		Sync(ReadDb(basePath, !nocache), basePath, netAddr(remoteAddress, unix), DiffActionsFactory)
+	case "fulldiff":
+		Sync(ReadDb(basePath, !nocache), basePath, netAddr(remoteAddress, unix), FullDiffActionsFactory)
 	case "recv":
 		Sync(ReadDb(basePath, !nocache), basePath, netAddr(remoteAddress, unix), RecvActionsFactory)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown operation '%s'\n", do)
 	}
 }
-
 
 /*
 Issues:
