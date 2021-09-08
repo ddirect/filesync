@@ -5,7 +5,7 @@ import (
 )
 
 func (cm *CacheMeta) Time() time.Time {
-	return time.Unix(0, cm.GetTimeNs())
+	return time.Unix(0, cm.TimeNs)
 }
 
 func NewCacheMeta(path string, device uint64) *CacheMeta {

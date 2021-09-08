@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"time"
 
 	"github.com/ddirect/check"
 	"github.com/ddirect/filemeta"
@@ -22,7 +21,7 @@ func ensureCacheDir() string {
 	return d
 }
 
-func ReadCache(basePath string) (*Db, time.Time) {
+func ReadCache(basePath string) (db *Db, cand *records.CacheMeta) {
 	cacheDir := ensureCacheDir()
 	path := check.SE(filepath.Abs(basePath))
 	fi, err := sys.Stat(path)
@@ -30,19 +29,18 @@ func ReadCache(basePath string) (*Db, time.Time) {
 	entries, err := os.ReadDir(cacheDir)
 	check.E(err)
 
-	meta := new(records.CacheMeta)
 	var toRemove []string
-	var cand string
-	var candNs int64
+	var cacheFile string
 	for _, e := range entries {
 		name := filepath.Join(cacheDir, e.Name())
+		meta := new(records.CacheMeta)
 		if filemeta.ReadCustom(name, cacheAttr, meta) == nil {
 			if meta.Path == path && meta.Device == fi.Device {
-				if cand != "" {
-					toRemove = append(toRemove, cand)
+				if cand != nil {
+					toRemove = append(toRemove, cand.Path)
 				}
-				cand = name
-				candNs = meta.TimeNs
+				cand = meta
+				cacheFile = name
 			}
 		} else {
 			toRemove = append(toRemove, name)
@@ -51,10 +49,10 @@ func ReadCache(basePath string) (*Db, time.Time) {
 	for _, x := range toRemove {
 		check.E(os.Remove(x))
 	}
-	if cand == "" {
-		return nil, time.Time{}
+	if cand != nil {
+		db = readDbFromFile(cacheFile)
 	}
-	return readDbFromFile(cand), time.Unix(0, candNs)
+	return
 }
 
 func WriteCache(basePath string, db *Db) {

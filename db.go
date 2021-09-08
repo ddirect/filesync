@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/ddirect/check"
 	"github.com/ddirect/filemeta"
@@ -33,10 +32,10 @@ func newDb() *Db {
 
 func ReadDb(basePath string, cache bool) (db *Db) {
 	if cache {
-		var tim time.Time
-		db, tim = ReadCache(basePath)
+		var crec *records.CacheMeta
+		db, crec = ReadCache(basePath)
 		if db != nil {
-			fmt.Fprintf(os.Stderr, "db cached on %s loaded\n", format.TimeMs(tim))
+			fmt.Fprintf(os.Stderr, "db cached on %s for '%s' loaded\n", format.TimeMs(crec.Time()), crec.Path)
 		}
 	}
 	if db == nil {
