@@ -12,7 +12,6 @@ import (
 	"github.com/ddirect/filemeta"
 	"github.com/ddirect/filetest"
 	ft "github.com/ddirect/filetest"
-	"github.com/ddirect/format"
 	"github.com/ddirect/xrand"
 )
 
@@ -91,7 +90,7 @@ func testSyncRelated(t *testing.T, checkOpt checkSyncOptions) {
 		t.Fatal("equal zone mismatch")
 	}
 	tab := ft.DirStatsTable()
-	tab.Heading = format.TableRow{".", "sour", "dest"}
+	tab.SetHeading(".", "sour", "dest")
 	sDs.AppendToTable(tab)
 	dDs.AppendToTable(tab)
 	fmt.Println(tab)
