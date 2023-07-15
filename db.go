@@ -58,6 +58,7 @@ func readDbCore(basePath string, op filemeta.Op) *Db {
 	wg1.Add(workers)
 	for i := 0; i < workers; i++ {
 		go func() {
+			defer wg1.Done()
 			for file := range queue1 {
 				data := filemeta.Operation(op, filepath.Join(basePath, file.Path))
 				check.E(data.Error)
@@ -68,7 +69,6 @@ func readDbCore(basePath string, op filemeta.Op) *Db {
 					queue2 <- file
 				}
 			}
-			wg1.Done()
 		}()
 	}
 
@@ -76,10 +76,10 @@ func readDbCore(basePath string, op filemeta.Op) *Db {
 
 	wg2.Add(1)
 	go func() {
+		defer wg2.Done()
 		for file := range queue2 {
 			db.FilesByHash[filemeta.ToHashKey(file.Hash)] = file
 		}
-		wg2.Done()
 	}()
 
 	Walk(basePath, func(relPath string) int {
